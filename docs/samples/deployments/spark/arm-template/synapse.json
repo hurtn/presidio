@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.15.31.15270",
-      "templateHash": "7894714884764823674"
+      "templateHash": "10241371413237962541"
     }
   },
   "parameters": {
@@ -368,7 +368,7 @@
           "linkedAccessCheckOnTargetResource": true,
           "preventDataExfiltration": true
         },
-        "publicNetworkAccess": "Disabled",
+        "publicNetworkAccess": "Enabled",
         "purviewConfiguration": "[if(empty(parameters('purviewId')), createObject(), createObject('purviewResourceId', parameters('purviewId')))]",
         "sqlAdministratorLogin": "[parameters('administratorUsername')]",
         "sqlAdministratorLoginPassword": "[if(equals(parameters('administratorPassword'), ''), null(), parameters('administratorPassword'))]",
@@ -379,6 +379,18 @@
       "dependsOn": [
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageNameCleaned'))]",
         "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', variables('storageNameCleaned'), 'default', variables('storageContainerNames')[0])]"
+      ]
+    },
+    {
+      "type": "Microsoft.Synapse/workspaces/firewallRules",
+      "apiVersion": "2021-06-01",
+      "name": "[format('{0}/{1}', parameters('synapseName'), 'allowAll')]",
+      "properties": {
+        "startIpAddress": "0.0.0.0",
+        "endIpAddress": "255.255.255.255"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Synapse/workspaces', parameters('synapseName'))]"
       ]
     },
     {

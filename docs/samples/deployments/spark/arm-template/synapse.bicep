@@ -277,7 +277,7 @@ resource synapse 'Microsoft.Synapse/workspaces@2021-06-01' = {
       linkedAccessCheckOnTargetResource: true
       preventDataExfiltration: true
     }
-    publicNetworkAccess: 'Disabled'
+    publicNetworkAccess: 'Enabled'
     purviewConfiguration: empty(purviewId) ? {} : {
       purviewResourceId: purviewId
     }
@@ -286,6 +286,15 @@ resource synapse 'Microsoft.Synapse/workspaces@2021-06-01' = {
     virtualNetworkProfile: {
       computeSubnetId: ''
     }
+  }
+}
+
+resource synapseIpRules 'Microsoft.Synapse/workspaces/firewallRules@2021-06-01' = {
+  parent: synapse
+  name: 'allowAll'
+  properties: {
+    startIpAddress: '0.0.0.0'
+    endIpAddress: '255.255.255.255'
   }
 }
 
