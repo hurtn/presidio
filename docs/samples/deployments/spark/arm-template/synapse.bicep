@@ -496,6 +496,15 @@ resource synapsePrivateEndpointDevARecord 'Microsoft.Network/privateEndpoints/pr
   }
 }
 
+resource synapseRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
+  name: guid(uniqueString(storage.id, synapse.id))
+  scope: storage
+  properties: {
+    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+    principalId: synapse.identity.principalId
+  }
+}
+
 // Outputs
 output synapseId string = synapse.id
 output synapseName string = synapse.name

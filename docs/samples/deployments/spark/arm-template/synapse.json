@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.15.31.15270",
-      "templateHash": "12911277302404547420"
+      "templateHash": "7894714884764823674"
     }
   },
   "parameters": {
@@ -615,6 +615,20 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Network/privateEndpoints', variables('synapsePrivateEndpointNameDev'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-04-01-preview",
+      "scope": "[format('Microsoft.Storage/storageAccounts/{0}', variables('storageNameCleaned'))]",
+      "name": "[guid(uniqueString(resourceId('Microsoft.Storage/storageAccounts', variables('storageNameCleaned')), resourceId('Microsoft.Synapse/workspaces', parameters('synapseName'))))]",
+      "properties": {
+        "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+        "principalId": "[reference(resourceId('Microsoft.Synapse/workspaces', parameters('synapseName')), '2021-06-01', 'full').identity.principalId]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageNameCleaned'))]",
+        "[resourceId('Microsoft.Synapse/workspaces', parameters('synapseName'))]"
       ]
     }
   ],
