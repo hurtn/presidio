@@ -50,11 +50,255 @@ anonymized_df = input_df.withColumn(
 )
 
 ```
-## Presidio in Spark - multiple column analysis and anonymization
 
 ## Presidio in Spark - known column(s) with PII (overriding analysis) and anonymization
+In this example we supply the list of columns to anonymise the entire column as opposed to only words which contain PII data. For this reason there is no need to call the analyzer for PII detection
+```python
+columnstoanonymize = ['first_name','last_name','email','city']
+anonymizer = AnonymizerEngine()
+
+# define a pandas UDF function and a series function over it.
+def anonymize_text(text: str) -> str:
+    #no need for analysis as we have specified the columns to anonymize, therefore overriding the analyzer results 
+    #analyzer_results = analyzer.analyze(text=text, language="en")
+ 
+    #call the anonymize function with dummy analyzer_results param
+    if text:
+        anonymized_results = anonymizer.anonymize(
+            text=text,
+            analyzer_results=[RecognizerResult('DEFAULT', 0, len(text), 0.85)],
+            operators={
+                "DEFAULT": OperatorConfig("mask", {"masking_char": "*", "chars_to_mask": 4, "from_end": True})
+            },
+        )
+        return anonymized_results.text
+    else:
+        return text
+
+def anonymize_series(s: pd.Series) -> pd.Series:
+    return s.apply(anonymize_text)
+
+
+# define a the function as pandas UDF
+anonymize = pandas_udf(anonymize_series, returnType=StringType())
+
+#apply the udf
+
+for col_name in df.columns:
+    for columntoanonymize in columnstoanonymize:
+        
+        if col_name == columntoanonymize:
+            df = df.withColumn(
+                col_name, anonymize(col(col_name)))
+
+display(df)
+```
+
+
+## Presidio in Spark - multiple column batch analysis and anonymization
+The same logic as above for anonymisation however in this example we use the batch analysis technique to determine which columns contain PII data using a sample of the dataframe
+```python
+# take a sample for detection/analysis
+detectionsample = 10
+
+# define the categories of data you want to anonymize
+pii_categories = 'PERSON EMAIL_ADDRESS LOCATION'
+
+# limit the rows in the dataframe for sampling purposes
+dfsample= df.limit(detectionsample).toPandas()
+
+# DataFrame to dict
+df_dict = dfsample.to_dict(orient="list")
+
+# initialise the analyzer engine and analyze the sample for PII
+analyzer = AnalyzerEngine()
+batch_analyzer = BatchAnalyzerEngine(analyzer_engine=analyzer)
+
+analyzer_results = batch_analyzer.analyze_dict(df_dict, language="en")
+analyzer_results = list(analyzer_results)
+
+columnstoanonymize = []
+
+for analyzerresult in analyzer_results:
+    for recognizerresult in analyzerresult.recognizer_results:
+        for result in recognizerresult:
+            if result and isinstance(result,RecognizerResult):
+
+                if str(result.entity_type) in pii_categories:
+                    if result.score>0.8 and analyzerresult.key not in columnstoanonymize:
+                      columnstoanonymize.append(analyzerresult.key)
+                    break
+
+anonymizer = AnonymizerEngine()
+
+# define a pandas UDF function and a series function over it.
+def anonymize_text(text: str) -> str:
+    #no need for analysis as we have already predetermined the columns to anonymize, therefore overriding the analyzer results 
+    #analyzer_results = analyzer.analyze(text=text, language="en")
+ 
+    #call the anonymize function with dummy analyzer_results param
+    if text:
+        anonymized_results = anonymizer.anonymize(
+            text=text,
+            analyzer_results=[RecognizerResult('DEFAULT', 0, len(text), 0.85)],
+            operators={
+                "DEFAULT": OperatorConfig("mask", {"masking_char": "*", "chars_to_mask": 4, "from_end": True})
+            },
+        )
+        return anonymized_results.text
+    else:
+        return text
+
+def anonymize_series(s: pd.Series) -> pd.Series:
+    return s.apply(anonymize_text)
+
+
+# define a the function as pandas UDF
+anonymize = pandas_udf(anonymize_series, returnType=StringType())
+
+#apply the udf
+
+for col_name in df.columns:
+    for columntoanonymize in columnstoanonymize:
+        
+        if col_name == columntoanonymize:
+            df = df.withColumn(
+                col_name, anonymize(col(col_name)))
+
+display(df)
+```
 
 ## Presidio in Spark - custom anonmization pattern
+```python
+@F.udf(returnType=StringType())
+def anonymizeText(text):
+    # Check if text null or empty
+    if not text or len(text) <= 0:
+        return text
+
+    # Get Presidio Anonymizer and Analzer
+    AnalyzerMagic.library_config()
+    analyzer = AnalyzerMagic.get("en_core_web_lg")
+    anonymizer = AnonymizerMagic.get()
+
+    # Analyze text
+    analyzer_results = analyzer.analyze(
+        text=text,
+        entities=[
+            "CREDIT_CARD",
+            "CRYPTO",
+            "EMAIL_ADDRESS",
+            "IBAN_CODE",
+            "PERSON",
+            "PHONE_NUMBER",
+            "MEDICAL_LICENSE",
+            "URL",
+            "US_BANK_NUMBER",
+            "US_DRIVER_LICENSE",
+            "US_ITIN",
+            "US_PASSPORT",
+            "US_SSN",
+            "UK_NHS",
+            "NIF",
+            "FIN/NRIC",
+            "AU_ABN",
+            "AU_ACN",
+            "AU_TFN",
+            "AU_MEDICARE",
+            "ORG"
+        ],
+        language="en"
+    )
+
+    # Define mapping
+    mapping = {
+        "CREDIT_CARD": "creditcard",
+        "CRYPTO": "crypto",
+        "EMAIL_ADDRESS": "email",
+        "IBAN_CODE": "iban",
+        "IP_ADDRESS": "ipaddress",
+        "LOCATION": "location",
+        "PERSON": "person",
+        "PHONE_NUMBER": "phone",
+        "MEDICAL_LICENSE": "medical",
+        "URL": "url",
+        "US_BANK_NUMBER": "usbank",
+        "US_DRIVER_LICENSE": "usdriver",
+        "US_ITIN": "usitin",
+        "US_PASSPORT": "uspassport",
+        "US_SSN": "usssn",
+        "UK_NHS": "uknhs",
+        "NIF": "nif",
+        "FIN/NRIC": "finnric",
+        "AU_ABN": "auabn",
+        "AU_ACN": "auacn",
+        "AU_TFN": "autfn",
+        "AU_MEDICARE": "usmedicare",
+        "DEFAULT": "other",
+        "ORG": "org"
+    }
+
+    def get_placeholder(operator: str, item: str)-> str:
+        # Get mapping
+        placeholder_mapping = mapping[operator]
+
+        # Create hash
+        item_hash = hashlib.sha1(item.encode("UTF-8")).hexdigest()
+        chars_hash = ''.join([i for i in item_hash if not i.isdigit()])
+        lower_hash = chars_hash.lower()+ chars_hash.lower()+ chars_hash.lower()
+        upper_hash = chars_hash.upper()+chars_hash.upper()+chars_hash.upper()
+        #substitute only the alphabetical characters based on the hash created
+        hashtable = str.maketrans("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", lower_hash[:26]+upper_hash[:26])
+
+        return item.translate(hashtable)
+
+
+    # Anonymize Text
+    try:
+        anonymizer_result = anonymizer.anonymize(
+            text=text,
+            analyzer_results=[RecognizerResult('DEFAULT', 0, len(text), 0.85)],
+            operators={
+                "CREDIT_CARD": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("CREDIT_CARD", x)}),
+                "CRYPTO": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("CRYPTO", x)}),
+                "EMAIL_ADDRESS": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("EMAIL_ADDRESS", x)}),
+                "IBAN_CODE": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("IBAN_CODE", x)}),
+                "IP_ADDRESS": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("IP_ADDRESS", x)}),
+                "LOCATION": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("LOCATION", x)}),
+                "PERSON": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("PERSON", x)}),
+                "PHONE_NUMBER": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("PHONE_NUMBER", x)}),
+                "MEDICAL_LICENSE": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("MEDICAL_LICENSE", x)}),
+                "URL": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("URL", x)}),
+                "US_BANK_NUMBER": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("US_BANK_NUMBER", x)}),
+                "US_DRIVER_LICENSE": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("US_DRIVER_LICENSE", x)}),
+                "US_ITIN": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("US_ITIN", x)}),
+                "US_PASSPORT": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("US_PASSPORT", x)}),
+                "US_SSN": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("US_SSN", x)}),
+                "UK_NHS": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("UK_NHS", x)}),
+                "NIF": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("NIF", x)}),
+                "FIN/NRIC": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("FIN/NRIC", x)}),
+                "AU_ABN": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("AU_ABN", x)}),
+                "AU_ACN": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("AU_ACN", x)}),
+                "AU_TFN": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("AU_TFN", x)}),
+                "AU_MEDICARE": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("AU_MEDICARE", x)}),
+                "DEFAULT": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("DEFAULT", x)}),
+                "ORG": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("ORG", x)})
+            },
+        )
+        return anonymizer_result.text
+    except:
+        return "Exception"
+
+columnstoanonymize = ['first_name','last_name','email','city']
+for col_name in df.columns:
+    for columntoanonymize in columnstoanonymize:
+       
+        if col_name == columntoanonymize:
+            df = df.withColumn(
+                col_name, anonymizeText(F.col(col_name)))
+
+display(df)
+```
 
 ## Synapse
 ### Pre-requisites
