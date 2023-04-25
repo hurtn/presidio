@@ -177,77 +177,16 @@ def anonymizeText(text):
         return text
 
     # Get Presidio Anonymizer and Analzer
-    AnalyzerMagic.library_config()
-    analyzer = AnalyzerMagic.get("en_core_web_lg")
     anonymizer = AnonymizerMagic.get()
 
-    # Analyze text
-    analyzer_results = analyzer.analyze(
-        text=text,
-        entities=[
-            "CREDIT_CARD",
-            "CRYPTO",
-            "EMAIL_ADDRESS",
-            "IBAN_CODE",
-            "PERSON",
-            "PHONE_NUMBER",
-            "MEDICAL_LICENSE",
-            "URL",
-            "US_BANK_NUMBER",
-            "US_DRIVER_LICENSE",
-            "US_ITIN",
-            "US_PASSPORT",
-            "US_SSN",
-            "UK_NHS",
-            "NIF",
-            "FIN/NRIC",
-            "AU_ABN",
-            "AU_ACN",
-            "AU_TFN",
-            "AU_MEDICARE",
-            "ORG"
-        ],
-        language="en"
-    )
-
-    # Define mapping
-    mapping = {
-        "CREDIT_CARD": "creditcard",
-        "CRYPTO": "crypto",
-        "EMAIL_ADDRESS": "email",
-        "IBAN_CODE": "iban",
-        "IP_ADDRESS": "ipaddress",
-        "LOCATION": "location",
-        "PERSON": "person",
-        "PHONE_NUMBER": "phone",
-        "MEDICAL_LICENSE": "medical",
-        "URL": "url",
-        "US_BANK_NUMBER": "usbank",
-        "US_DRIVER_LICENSE": "usdriver",
-        "US_ITIN": "usitin",
-        "US_PASSPORT": "uspassport",
-        "US_SSN": "usssn",
-        "UK_NHS": "uknhs",
-        "NIF": "nif",
-        "FIN/NRIC": "finnric",
-        "AU_ABN": "auabn",
-        "AU_ACN": "auacn",
-        "AU_TFN": "autfn",
-        "AU_MEDICARE": "usmedicare",
-        "DEFAULT": "other",
-        "ORG": "org"
-    }
-
     def get_placeholder(operator: str, item: str)-> str:
-        # Get mapping
-        placeholder_mapping = mapping[operator]
 
         # Create hash
         item_hash = hashlib.sha1(item.encode("UTF-8")).hexdigest()
         chars_hash = ''.join([i for i in item_hash if not i.isdigit()])
         lower_hash = chars_hash.lower()+ chars_hash.lower()+ chars_hash.lower()
         upper_hash = chars_hash.upper()+chars_hash.upper()+chars_hash.upper()
-        #substitute only the alphabetical characters based on the hash created
+
         hashtable = str.maketrans("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", lower_hash[:26]+upper_hash[:26])
 
         return item.translate(hashtable)
@@ -259,35 +198,13 @@ def anonymizeText(text):
             text=text,
             analyzer_results=[RecognizerResult('DEFAULT', 0, len(text), 0.85)],
             operators={
-                "CREDIT_CARD": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("CREDIT_CARD", x)}),
-                "CRYPTO": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("CRYPTO", x)}),
-                "EMAIL_ADDRESS": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("EMAIL_ADDRESS", x)}),
-                "IBAN_CODE": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("IBAN_CODE", x)}),
-                "IP_ADDRESS": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("IP_ADDRESS", x)}),
-                "LOCATION": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("LOCATION", x)}),
-                "PERSON": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("PERSON", x)}),
-                "PHONE_NUMBER": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("PHONE_NUMBER", x)}),
-                "MEDICAL_LICENSE": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("MEDICAL_LICENSE", x)}),
-                "URL": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("URL", x)}),
-                "US_BANK_NUMBER": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("US_BANK_NUMBER", x)}),
-                "US_DRIVER_LICENSE": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("US_DRIVER_LICENSE", x)}),
-                "US_ITIN": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("US_ITIN", x)}),
-                "US_PASSPORT": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("US_PASSPORT", x)}),
-                "US_SSN": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("US_SSN", x)}),
-                "UK_NHS": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("UK_NHS", x)}),
-                "NIF": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("NIF", x)}),
-                "FIN/NRIC": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("FIN/NRIC", x)}),
-                "AU_ABN": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("AU_ABN", x)}),
-                "AU_ACN": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("AU_ACN", x)}),
-                "AU_TFN": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("AU_TFN", x)}),
-                "AU_MEDICARE": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("AU_MEDICARE", x)}),
-                "DEFAULT": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("DEFAULT", x)}),
-                "ORG": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("ORG", x)})
+                "DEFAULT": OperatorConfig("custom", {"lambda": lambda x: get_placeholder("DEFAULT", x)})
             },
         )
         return anonymizer_result.text
     except:
         return "Exception"
+
 
 columnstoanonymize = ['first_name','last_name','email','city']
 for col_name in df.columns:
@@ -303,11 +220,26 @@ display(df)
 ## Synapse
 ### Pre-requisites
 
-If you do not have an instance of Azure Synapse, follow through with [the following guide](https://learn.microsoft.com/en-us/azure/synapse-analytics/quickstart-deployment-template-workspaces) to provision a workspace.
+If you do not have an instance of Azure Synapse, either use [the following guide](https://learn.microsoft.com/en-us/azure/synapse-analytics/quickstart-deployment-template-workspaces) to provision a workspace or script below.
 
 ### Deploy Infrastructure
 
-Coming soon
+Provision the Azure Synapse workspace by running the following script.
+
+``` bash
+export RESOURCE_GROUP=[resource group name]
+export STORAGE_ACCOUNT_NAME=[storage account name]
+export STORAGE_CONTAINER_NAME=[blob container name]
+export DATABRICKS_WORKSPACE_NAME=[databricks workspace name]
+export DATABRICKS_SKU=[basic/standard/premium]
+export LOCATION=[location]
+
+# Create the resource group
+az group create --name $RESOURCE_GROUP --location $LOCATION
+
+# Use ARM template to build the resources and get back the workspace URL
+
+```
 
 ### Configure Synpase workspace packages only for Data Exfiltration (DEP) Enabled workspaces
 
