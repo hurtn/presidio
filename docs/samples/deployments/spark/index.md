@@ -1,16 +1,17 @@
 # Anonymize PII using Presidio on Spark
 
-You can leverages presidio to perform data anonymization as part of spark notebooks.
+You can leverage presidio to perform data anonymization as part of spark notebooks.
 
-The following samples cover uses in [Azure Databricks](https://docs.microsoft.com/en-us/azure/databricks/) or [Azure Synapse Analytics](https://learn.microsoft.com/en-us/azure/synapse-analytics/spark/apache-spark-overview) and simple text files hosted on [Azure Blob Storage](https://docs.microsoft.com/en-us/azure/storage/blobs/). However, it can easily change to fit any other scenario which requires PII analysis or anonymization as part of spark jobs.
+The following samples cover uses in [Azure Databricks](https://docs.microsoft.com/en-us/azure/databricks/) or [Azure Synapse Analytics](https://learn.microsoft.com/en-us/azure/synapse-analytics/spark/apache-spark-overview) and simple text files hosted on [Azure Blob Storage](https://docs.microsoft.com/en-us/azure/storage/blobs/). However, it can easily be changed to fit any other scenario which requires PII analysis or anonymization as part of spark jobs.
 
 **Note** that this code works for either:
 Databricks runtime 8.1 (Spark 3.1.1) and the libraries described [here](https://docs.microsoft.com/en-us/azure/databricks/release-notes/runtime/8.1)
+
 Synapse Analytics (Spark 3.2) and the libraries described [here](https://learn.microsoft.com/en-us/azure/synapse-analytics/spark/apache-spark-32-runtime)
 
-## The basics of working with Presidio in Spark
+## The basics of working with Presidio in Spark - single column analysis and anonymization
 
-A typical use case of Presidio in Spark is transforming a text column in a data frame, by anonymizing its content. The following code sample, a part of [transform presidio notebook](./notebooks/01_transform_presidio.py), is the basis of the e2e sample which uses Azure Databricks as the Spark environment.
+A typical use case of Presidio in Spark is transforming a text column in a data frame, by anonymizing its content. The following code sample, a part of [transform presidio notebook](./notebooks/01_transform_presidio.py), is the basis of the e2e sample which uses Azure Databricks or Synapse Analytics as the Spark environment.
 
 ```python
 anonymized_column = "value" # name of column to anonymize
@@ -49,7 +50,11 @@ anonymized_df = input_df.withColumn(
 )
 
 ```
+## Presidio in Spark - multiple column analysis and anonymization
 
+## Presidio in Spark - known column(s) with PII (overriding analysis) and anonymization
+
+## Presidio in Spark - custom anonmization pattern
 
 ## Synapse
 ### Pre-requisites
